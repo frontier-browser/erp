@@ -1,26 +1,24 @@
 const CACHE_NAME = 'frontier-os-v6-core';
 const DYNAMIC_CACHE = 'frontier-os-v6-dynamic';
+const MAX_DYNAMIC_ITEMS = 50; // Cache size limit
 
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
+  './css/styles.css',
+  './js/app.js',
   './manifest.json',
   'icon.png',
-  'icon-512.png',
-  'https://cdn.tailwindcss.com',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js'
+  'icon-512.png'
 ];
 
-// 1. Install event: Cache essential enterprise assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // Force the waiting service worker to become the active service worker.
 });
 
-// 2. Activate event: Clean up legacy caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => Promise.all(
@@ -31,24 +29,39 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// 3. Fetch event: Stale-while-revalidate for maximum UI speed
+// Helper function to prevent Dynamic Cache bloating
+const limitCacheSize = (name, size) => {
+  caches.open(name).then(cache => {
+    cache.keys().then(keys => {
+      if(keys.length > size){
+        cache.delete(keys[0]).then(() => limitCacheSize(name, size));
+      }
+    });
+  });
+};
+
 self.addEventListener('fetch', (event) => {
+  // Exclude CDNs from manual dynamic caching (they manage their own caching headers)
+  if (event.request.url.includes('cdn.tailwindcss.com') || event.request.url.includes('cdnjs.cloudflare.com')) {
+      return; 
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const networkFetch = fetch(event.request).then((networkResponse) => {
-        // Dynamically cache successful read-only requests
         if (event.request.method === 'GET' && networkResponse.status === 200) {
           caches.open(DYNAMIC_CACHE).then((cache) => {
             cache.put(event.request, networkResponse.clone());
+            limitCacheSize(DYNAMIC_CACHE, MAX_DYNAMIC_ITEMS);
           });
         }
         return networkResponse;
       }).catch(() => {
+        // Fallback for navigation requests
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html');
         }
       });
-      // Return cached response instantly, while silently updating it in the background
       return cachedResponse || networkFetch;
     })
   );
