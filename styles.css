@@ -1,0 +1,18 @@
+body { 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    transition: background-color 0.3s, color 0.3s; 
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Auth Gateway Overrides */
+.auth-view { display: none; }
+.auth-view.active { display: block; }
+
+/* RTL Layout Support */
+.rtl-layout { direction: rtl; }
+.rtl-layout th, .rtl-layout td { text-align: right; }
+.rtl-layout .flex-row-reverse-rtl { flex-direction: row-reverse; }
+.rtl-layout .ml-auto-rtl { margin-right: auto; margin-left: 0; }
+.rtl-layout .mr-auto-rtl { margin-left: auto; margin-right: 0; }
+.rtl-layout .text-right-rtl { text-align: left; }
